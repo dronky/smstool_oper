@@ -1,0 +1,19 @@
+)body window(61,30)
+%----------------  SMS CONTROL TOOL HELP --------------------
++                 SMS ADD/REMOVE DISK TOOL                  +
++                                                           +
++                                                           +
++ Add volume:                                               +
++ 1) First, list group disks [L] to check aviable volumes   +
++ 2) To automatic find free volume Use [F]                  +
++ 3) After we selected GROUP, VOLUME, we need to set SIZE   +
++    (default will be 9gb)                                  +
++ 4) [A]dd disk. If all jobs completed with 0000, disk added+
++    successfully. If jobs completed with 0012 you must     +
++    manually change DSKLST dataset (vol->TM UNIT)          +
++                                                           +
++                                                           +
++                                                           +
+)INIT
+)PROC
+)end

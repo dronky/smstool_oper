@@ -1,0 +1,118 @@
+)body
+%---------------------------  ADD VOLUME TO SMS GROUP  ----------------
+% Option  ===>_ZCMD  +
++ [A]dd volume                                                +
++ [F]ind volume                                               +
++ [L]ist group                                                +
++ [0]Exit                                                     +
+% GROUP ..... _GRP     +
+% VOLUME .... _VOL          +
+% SIZE ...... _SIZE+ (9 27 54) default: 27+
++                                                           +
++                                                           +
++ CURRENT SYSTEMS LIST ... &SYSDS                           +
++ CURRENT DISKLIST ....... &DSKLST                          +
++ CURRENT TEMPDS ......... &TEMPDS                          +
++                                                           +
++                                                           +
+)INIT
+.CURSOR = ZCMD
+&STAT=''
+&DSKLST='A09.DSKLST'
+&SYSDS='A09.TS'
+&TEMPDS='A09.TMP'
+&MODE=0
+/* MODE FOR CHECK IS DISK ENABLED. 0 - CURRENT DISKS, 1 - ANOTHER DISKS */
+)PROC
+&ZSEL = TRANS(&ZCMD
+            A,'SMSD'
+            D,'SMSADD'
+            L,'SMSVOL'
+            F,'SMSF'
+            0,'0')
+IF (VER (&GRP,NB) & &ZCMD='L')
+  &ARGS = 'd sms,storgrp(&GRP),LISTVOL'
+  *REXX(ARGS,(DIP#))
+IF (VER (&GRP,NB) & &ZCMD='F')
+  *REXX(GRP,VOL,(FVOL#))
+IF (VER(&GRP,NB) & VER(&VOL,NB) & &VOL NE 'NOT FOUND' & &ZCMD='A')
+  *REXX(GRP,VOL,STAT,SIZE,(CHKVOL2#))
+  IF (&STAT = 'OK')
+    &STAT = ''
+    /* CHECK SIZE IF DISK ADDING */
+    IF (&SIZE='')
+      &SIZE='27'
+    IF (&SIZE NE '9' & &SIZE NE '27' & &SIZE NE '54')
+      *REXX(SIZE)
+      SAY 'SIZE ' SIZE ' NOT ALLOWED. ENTER PLEASE VALID SIZE (9 27 54)'
+      *ENDREXX
+    ELSE
+      *REXX(GRP,VOL,MODE,STAT,(CHKENB#))
+      IF (&STAT = 'OK')
+        &STAT = ''
+        *REXX(DSKLST,SYSDS,TEMPDS,STAT,(CHKALLC#))
+        IF (&STAT = 'OK')
+          &STAT = ''
+          *REXX(DSKLST,ADDR,VOL,SIZE,(FADDR#))
+          IF (&ADDR NE 'NOT FOUND')
+            *REXX(GRP,VOL,ADDR,SYSDS,TEMPDS)
+            SAY 'ADDRESS: 'ADDR
+            SAY 'VOLUME: 'VOL
+            /* run routine which generates jcl with system command 'vary' */
+            CALL ALLCJCL# TEMPDS ADDR 'OFFLINE'
+            /* READ DS INTO STEM */
+            "ALLOC DA('"SYSDS"') F(INPUTDD) SHR REUSE"
+            "EXECIO * DISKR INPUTDD (STEM SYSL. FINIS"
+            "FREE F(INPUTDD)"
+            /* FTPSUB CREATED JCL */
+            "CONSOLE ACTIVATE NAME(A09)"
+            ADDRESS CONSOLE
+            "CART SYSCMD01"
+            DO i = 1 to SYSL.0
+              SAY 'VARY OFF ' ADDR ' ON 'SYSL.I
+              COMMAND="S FTPSUB,SYS="SYSL.i",DS='"TEMPDS"'"
+              INTERPRET '"'COMMAND'"'
+              CR = GETMSG('SYSRESP.','SOL','SYSCMD01',,5)
+            END
+            ADDRESS TSO
+            "CONSOLE DEACTIVATE"
+            /* CREATE INITIALIZATION JCL */
+            CALL INIT# TEMPDS ADDR VOL
+            /* ONLINE DISK */
+            CALL ALLCJCL# TEMPDS ADDR 'ONLINE'
+            /* FTPSUB TO ALL SYSTEMS */
+            "CONSOLE ACTIVATE NAME(A09)"
+            ADDRESS CONSOLE
+            "CART SYSCMD01"
+            DO i = 1 to SYSL.0
+              SAY 'VARY ON ' ADDR ' ON 'SYSL.I
+              COMMAND="S FTPSUB,SYS="SYSL.i",DS='"TEMPDS"'"
+              INTERPRET '"'COMMAND'"'
+              CR = GETMSG('SYSRESP.','SOL','SYSCMD01',,5)
+            END
+            ADDRESS TSO
+            "CONSOLE DEACTIVATE"
+            SAY SIZE ' GB DISK('ADDR') ADDED TO GROUP 'GRP' WITH VOL ' VOL
+            *ENDREXX
+          ELSE
+            *REXX(SIZE)
+            SAY 'CANT FIND FREE DISK ' SIZE ' GB IN DISKLIST'
+            *ENDREXX
+        ELSE
+          *REXX()
+          SAY 'CANT DELETE/CREATE TEMP DATASET OR DISKLIST NOT DEFINED'
+          *ENDREXX
+      ELSE
+        *REXX()
+        SAY 'SELECTED DISK NOT ENABLED AT ALL SYSTEMS'
+        *ENDREXX
+  ELSE
+    *REXX(VOL,GRP,STAT)
+    SAY VOL ' ALREADY EXIST IN THIS GROUP('GRP') OR NO FREE VOLS'
+    *ENDREXX
+)HELP
+FIELD(ZCMD) PANEL(HSMSOPER)
+FIELD(VOL)  PANEL(HSMSOPER)
+FIELD(GRP)  PANEL(HSMSOPER)
+FIELD(SIZE) PANEL(HSMSOEPR)
+)end

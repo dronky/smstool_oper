@@ -1,0 +1,33 @@
+/* REXX */
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ CALL ISPPRXVP 'I'
+ TRACE "O"
+ PARSE SOURCE _SYS _HOW _CMD .
+ /*ARGS = "D SMS"*/
+ CART     = "OPER0001"
+ _MSG = MSG("OFF")
+ ZRC = $TSOEX("CONSOLE DEACTIVATE ")
+ ZRC = $TSOEX("CONSPROF SOLDISP(NO) SOLNUM(9999)" )
+ ZRC = $TSOEX("CONSOLE ACTIVATE")
+ IF ZRC = 0 THEN DO
+    ZRC = $TSOEX("CONSOLE SYSCMD("ARGS") CART("CART") ")
+    IF ZRC = 0 THEN DO
+       ZRC = GETMSG("CONSOLE.",,CART,,120)
+    END
+    ZRC = $TSOEX("CONSOLE DEACTIVATE ")
+ END
+ DO I = 1 TO CONSOLE.0
+    SAY I CONSOLE.I
+ END
+ _MSG = MSG(_MSG)
+ CALL ISPPRXVP 'T'
+ RETURN CONSOLE
+ EXIT
+
+ /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ $TSOEX:
+    TSO_0TR = TRACE("O")
+    ADDRESS TSO ARG(1)
+    TSO_0RC = RC
+    TRACE VALUE(TSO_0TR)
+    RETURN TSO_0RC
